@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+  namespace: db-ns
+spec:
+  selector:
+    matchLabels:
+      app: mysql
+  serviceName: mysql-svc
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: wjsthdus36/project:mysql_v5
+        imagePullPolicy: Always
+        args:
+        - "--ignore-db-dir=lost+found"
+        env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-pass
+                  key: rootpass
+            - name: MYSQL_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql-cm
+                  key: mysqldb
+            - name: MYSQL_USER 
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-pass
+                  key: username                
+            - name: MYSQL_ROOT_HOST 
+              value: '%'
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-pass
+                  key: userpass
+        ports:
+          - name: db
+            protocol: TCP
+            containerPort: 3306
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/mysql
+
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi

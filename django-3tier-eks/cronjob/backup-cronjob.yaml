@@ -1,0 +1,25 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup
+  namespace: web-ns
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: centos
+            image: wjsthdus36/msa2:jobsh-v1
+            imagePullPolicy: Always
+            command: ["/test/copy.sh"]
+            volumeMounts:
+              - mountPath: /var/log/nginx
+                name: log
+          volumes:
+            - name: log
+              nfs:
+                path: /log
+                server: 172.30.100.103
+          restartPolicy: OnFailure

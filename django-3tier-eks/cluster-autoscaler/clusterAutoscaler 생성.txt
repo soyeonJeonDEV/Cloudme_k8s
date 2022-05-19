@@ -1,0 +1,79 @@
+설명 잘 이해 안가시면 아래 홈페이지 참고해주세요!
+https://docs.aws.amazon.com/ko_kr/eks/latest/userguide/autoscaling.html
+
+
+# 정책 생성(계정당 한번만 하면 실행 안해줘도 됩니다.) - cluster-autoscaler-policy.json 파일 실행하는 구문입니다.
+aws iam create-policy --policy-name AmazonEKSClusterAutoscalerPolicy --policy-document file://cluster-autoscaler-policy.json
+-> arn 적어두기
+-> arn 안뜨시면 IAM-정책-AmazonEKSClusterAutoscalerPolicy ARN 복사
+
+
+# eksctl - IAM 역할 생성 <아래 내용은 wsl에서실행>
+eksctl create iamserviceaccount \
+  --cluster=<my-cluster> \
+  --namespace=kube-system \
+  --name=cluster-autoscaler \
+  --attach-policy-arn=arn:aws:iam::<AWS_ACCOUNT_ID>:policy/<AmazonEKSClusterAutoscalerPolicy> \
+  --override-existing-serviceaccounts \
+  --approve
+----
+==cli에서 실행하려면
+eksctl create iamserviceaccount --cluster=<my-cluster> --namespace=kube-system --name=cluster-autoscaler --attach-policy-arn=arn:aws:iam::<AWS_ACCOUNT_ID>:policy/<AmazonEKSClusterAutoscalerPolicy> --override-existing-serviceaccounts --approve
+
+==저랑 계정 같으시면 아래 코드 클러스터 이름만 변경해주세요.
+eksctl create iamserviceaccount --cluster=thdus2 --namespace=kube-system --name=cluster-autoscaler --attach-policy-arn=arn:aws:iam::940168446867:policy/AmazonEKSClusterAutoscalerPolicy --override-existing-serviceaccounts --approve
+
+
+
+
+# cluster-autoscaler-autodiscover.yaml파일 실행(있는 파일 실행할 경우)
+1. <YOUR CLUSTER NAME> 을 클러스터 이름으로 변경
+
+
+# cluster autoscaler yaml파일 다운(새로 만들 경우)
+curl -o cluster-autoscaler-autodiscover.yaml https://raw.githubusercontent.com/kubernetes/autoscaler/master/cluster-autoscaler/cloudprovider/aws/examples/cluster-autoscaler-autodiscover.yaml
+
+#서비스 계정 주석 (이것도 계정당 한번)
+kubectl annotate serviceaccount cluster-autoscaler -n kube-system eks.amazonaws.com/role-arn=arn:aws:iam::940168446867:policy/AmazonEKSClusterAutoscalerPolicy
+
+# cluster-autoscaler.kubernetes.io/safe-to-evict 주석 추가
+kubectl annotate serviceaccount cluster-autoscaler -n kube-system eks.amazonaws.com/role-arn=arn:aws:iam::<ACCOUNT_ID>:role/<AmazonEKSClusterAutoscalerRole>
+
+
+  === cluster-autoscaler-autodiscover.yaml에서 다음 부분 수정 ==
+  1. 아래 코드를 찾고 <YOUR CLUSTER NAME> 을 클러스터 이름으로 변경
+  2. 아래 코드 추가
+      --balance-similar-node-groups
+      --skip-nodes-with-system-pods=false
+ 
+  spec:
+      containers:
+      - command:
+        - ./cluster-autoscaler
+        - --v=4
+        - --stderrthreshold=info
+        - --cloud-provider=aws
+        - --skip-nodes-with-local-storage=false
+        - --expander=least-waste
+        - --node-group-auto-discovery=asg:tag=k8s.io/cluster-autoscaler/enabled,k8s.io/cluster-autoscaler/<YOUR CLUSTER NAME>
+        - --balance-similar-node-groups
+        - --skip-nodes-with-system-pods=false
+
+==========================================================
+
+
+# YAML 실행
+kubectl apply -f cluster-autoscaler-autodiscover.yaml
+
+# 컨트롤러 설치 확인
+kubectl get deployment -n kube-system cluster-autoscaler
+
+# 로그 확인
+kubectl -n kube-system logs -f deployment.apps/cluster-autoscaler
+
+#max 4로 수정(gui에서 수정하셔도 됩니다.)
+aws autoscaling update-auto-scaling-group --auto-scaling-group-name <auto scaling 그룹 이름> --min-size 3 --desired-capacity 3 --max-size 4
+
+aws autoscaling update-auto-scaling-group --auto-scaling-group-name eks-ng-36b94ec8-92c02f0e-e2a0-2073-b209-e7fb9ecd2fd6 --min-size 3 --desired-capacity 3 --max-size 4
+
+

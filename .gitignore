@@ -1,0 +1,5 @@
+django-3tier-eks/cert-django/tls.crt
+django-3tier-eks/cert-django/tls.key
+django-3tier-eks/cluster-autoscaler/cluster-autoscaler-autodiscover.yaml
+django-3tier-eks/iam_policy.json
+django-3tier-eks/v2_4_0_full.yaml

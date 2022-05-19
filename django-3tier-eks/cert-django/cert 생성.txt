@@ -1,0 +1,2 @@
+#secret 생성
+kubectl.exe create secret tls tls-crt --key tls.key --cert tls.crt

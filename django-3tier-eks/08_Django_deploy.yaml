@@ -1,0 +1,35 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: was
+  namespace: was-ns
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: was
+  template:
+    metadata:
+      labels:
+        app: was
+    spec:
+      containers:
+      - name: was
+        image: wjsthdus36/cicd:django_latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+        resources:         # once here
+          requests:
+            cpu: 250m
+          limits:
+            cpu: 500m    
+
+      initContainers:
+      - name: wait-for-redis
+        image: busybox:1.28
+        command: ['sh', '-c', "until nslookup redis-svc.was-ns.svc.cluster.local; do echo waiting for redis-svc; sleep 2; done"]
+      - name: wait-for-mysql
+        image: busybox:1.28
+        command: ['sh', '-c', "until nslookup db-0.mysql-svc.db-ns.svc.cluster.local; do echo waiting for db-0.mysql-svc; sleep 2; done"]
